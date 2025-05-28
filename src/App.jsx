@@ -4,10 +4,11 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
-// Simple Home component with room creation/joining
 function Home() {
   const [roomId, setRoomId] = useState('');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => {
+    return localStorage.getItem('poker_username') || '';
+  });
   const navigate = useNavigate();
 
   const createRoom = () => {
@@ -15,6 +16,7 @@ function Home() {
       alert('Please enter your username');
       return;
     }
+    localStorage.setItem('poker_username', username);
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     navigate(`/room/${newRoomId}/lobby`, { state: { username } });
   };
@@ -24,6 +26,7 @@ function Home() {
       alert('Please enter your username');
       return;
     }
+    localStorage.setItem('poker_username', username);
     if (roomId.trim()) {
       navigate(`/room/${roomId}/lobby`, { state: { username } });
     } else {
@@ -31,93 +34,77 @@ function Home() {
     }
   };
 
+  const handleUsernameChange = (e) => {
+    const newUsername = e.target.value;
+    setUsername(newUsername);
+    if (newUsername.trim()) {
+      localStorage.setItem('poker_username', newUsername);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6 text-center">
       <h1 className="text-5xl font-bold mb-8 text-blue-800">🎲 Online Poker</h1>
       <div className="max-w-md mx-auto space-y-4">
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Enter your username"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl"
-        />
-        <button 
-          onClick={createRoom}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl"
-        >
-          Create Room
-        </button>
+        <div className="flex space-x-4">
+          <input
+            type="text"
+            value={username}
+            onChange={handleUsernameChange}
+            placeholder="Enter your username"
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex space-x-4">
+          <button 
+            onClick={createRoom}
+            className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg transition-all duration-200"
+          >
+            Create Room
+          </button>
+        </div>
         <div className="flex space-x-4">
           <input
             type="text"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value.toUpperCase())}
             placeholder="Enter Room ID"
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl"
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button 
             onClick={joinRoom}
-            className="px-6 py-3 bg-green-600 text-white rounded-xl"
+            className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg transition-all duration-200"
           >
             Join Room
           </button>
         </div>
-        <Link to="/single" className="block w-full px-6 py-3 bg-purple-600 text-white rounded-xl">
-          Play vs Bot
-        </Link>
+        <div className="pt-4">
+          <Link to="/single" className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-lg transition-all duration-200">
+            Play vs Bot
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
 
-// Simple Rules component
 function Rules() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6">
         <h2 className="text-3xl font-semibold mb-4 text-blue-800">📜 Poker Rules</h2>
-        <div className="text-gray-700 space-y-4">
-          <p>1. Each player gets 2 cards</p>
-          <p>2. Betting rounds: Pre-flop, Flop, Turn, River</p>
-          <p>3. Actions: Fold, Check, Call, Raise</p>
-          <p>4. Best 5-card hand wins</p>
-        </div>
+        <p className="text-gray-700">Texas Hold'em poker rules will be here...</p>
       </div>
     </div>
   );
 }
 
-// Simple Card component
-function Card({ value, suit, isHidden = false }) {
-  const isRed = suit === '♥' || suit === '♦';
-  
-  if (isHidden) {
-    return (
-      <div className="w-16 h-24 bg-blue-600 rounded-lg flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full bg-white/10"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-16 h-24 bg-white rounded-lg flex flex-col p-2 shadow-lg">
-      <div className={`text-lg font-bold ${isRed ? 'text-red-600' : 'text-gray-800'}`}>
-        {value}
-      </div>
-      <div className={`text-2xl ${isRed ? 'text-red-600' : 'text-gray-800'}`}>
-        {suit}
-      </div>
-    </div>
-  );
-}
-
-// Simple Lobby component
 function Lobby() {
   const { id: roomId } = useParams();
   const location = useLocation();
   const username = location.state?.username || 'Anonymous';
   const [players, setPlayers] = useState([]);
+  const [gameStarted, setGameStarted] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -126,7 +113,9 @@ function Lobby() {
     
     if (existingPlayer) {
       setPlayers(roomData.players.map(p => 
-        p.name === username ? { ...p, isCurrentUser: true } : { ...p, isCurrentUser: false }
+        p.name === username 
+          ? { ...p, isCurrentUser: true }
+          : { ...p, isCurrentUser: false }
       ));
     } else {
       const newPlayer = {
@@ -136,16 +125,21 @@ function Lobby() {
         isReady: false,
         isCurrentUser: true
       };
+      
       const updatedPlayers = [...roomData.players, newPlayer];
       setPlayers(updatedPlayers);
-      localStorage.setItem(`room_${roomId}`, JSON.stringify({ players: updatedPlayers }));
+      localStorage.setItem(`room_${roomId}`, JSON.stringify({
+        players: updatedPlayers
+      }));
     }
 
     const handleStorageChange = (e) => {
       if (e.key === `room_${roomId}`) {
         const newRoomData = JSON.parse(e.newValue);
         setPlayers(newRoomData.players.map(p => 
-          p.name === username ? { ...p, isCurrentUser: true } : { ...p, isCurrentUser: false }
+          p.name === username 
+            ? { ...p, isCurrentUser: true }
+            : { ...p, isCurrentUser: false }
         ));
       }
     };
@@ -156,113 +150,133 @@ function Lobby() {
 
   const startGame = () => {
     if (players.filter(p => p.isReady).length >= 2) {
+      setGameStarted(true);
       navigate(`/room/${roomId}/game`, { state: { username } });
     } else {
-      alert("Need at least 2 ready players to start!");
+      alert("Need at least 2 ready players to start the game!");
     }
   };
 
-  const toggleReady = (playerId) => {
+  const togglePlayerReady = (playerId) => {
     const updatedPlayers = players.map(player => 
       player.id === playerId && player.isCurrentUser
         ? { ...player, isReady: !player.isReady }
         : player
     );
+    
     setPlayers(updatedPlayers);
-    localStorage.setItem(`room_${roomId}`, JSON.stringify({ players: updatedPlayers }));
+    localStorage.setItem(`room_${roomId}`, JSON.stringify({
+      players: updatedPlayers
+    }));
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-3xl font-semibold text-blue-800 mb-6">Room: {roomId}</h2>
-        <div className="space-y-4">
-          {players.map(player => (
-            <div key={player.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-              <div>
-                <span className="font-medium">{player.name}</span>
-                {player.isCurrentUser && <span className="text-blue-600 ml-2">(You)</span>}
-              </div>
-              {player.isCurrentUser ? (
-                <button
-                  onClick={() => toggleReady(player.id)}
-                  className={`px-4 py-2 rounded-lg ${
-                    player.isReady ? 'bg-green-500 text-white' : 'bg-gray-300'
-                  }`}
-                >
-                  {player.isReady ? 'Ready' : 'Not Ready'}
-                </button>
-              ) : (
-                <div className="px-4 py-2 bg-gray-200 rounded-lg">
-                  {player.isReady ? 'Ready' : 'Not Ready'}
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-semibold text-blue-800">🧑‍🤝‍🧑 Room Lobby</h2>
+          <div className="flex items-center space-x-4">
+            <div className="text-gray-600">Room ID: {roomId}</div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(roomId);
+                alert('Room ID copied to clipboard!');
+              }}
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 text-sm"
+            >
+              Copy ID
+            </button>
+          </div>
         </div>
-        <button
-          onClick={startGame}
-          disabled={players.filter(p => p.isReady).length < 2}
-          className={`mt-6 w-full px-6 py-3 rounded-xl ${
-            players.filter(p => p.isReady).length >= 2
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-300 text-gray-500'
-          }`}
-        >
-          Start Game
-        </button>
+        
+        <div className="mb-6">
+          <h3 className="text-xl font-medium mb-3 text-gray-700">Players ({players.length}/6)</h3>
+          <div className="space-y-3">
+            {players.map(player => (
+              <div 
+                key={player.id}
+                className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors ${
+                  player.isCurrentUser ? 'ring-2 ring-blue-500' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <span className="text-gray-700">{player.name}</span>
+                  <span className="text-green-600">${player.chips}</span>
+                  {player.isCurrentUser && (
+                    <span className="text-blue-600 text-sm">(You)</span>
+                  )}
+                </div>
+                {player.isCurrentUser ? (
+                  <button
+                    onClick={() => togglePlayerReady(player.id)}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      player.isReady 
+                        ? 'bg-green-500 hover:bg-green-600 text-white' 
+                        : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                    }`}
+                  >
+                    {player.isReady ? 'Ready' : 'Not Ready'}
+                  </button>
+                ) : (
+                  <div className="px-4 py-2 rounded-lg bg-gray-200 text-gray-600">
+                    {player.isReady ? 'Ready' : 'Not Ready'}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <div className="text-gray-600">
+            {players.filter(p => p.isReady).length} players ready
+          </div>
+          <button
+            onClick={startGame}
+            disabled={players.filter(p => p.isReady).length < 2}
+            className={`px-6 py-3 rounded-xl shadow-lg transition-all duration-200 ${
+              players.filter(p => p.isReady).length >= 2
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Start Game
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Simple GameRoom component
+function Card({ value, suit, isHidden = false }) {
+  const getSuitColor = (suit) => {
+    return suit === '♥' || suit === '♦' ? 'text-red-600' : 'text-gray-800';
+  };
+
+  if (isHidden) {
+    return (
+      <div className="w-16 h-24 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg border-2 border-white/20">
+        <div className="w-8 h-8 rounded-full bg-white/10"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-16 h-24 bg-white rounded-lg flex flex-col p-2 shadow-lg border border-gray-200">
+      <div className={`text-lg font-bold ${getSuitColor(suit)}`}>
+        {value}
+      </div>
+      <div className={`text-2xl ${getSuitColor(suit)}`}>
+        {suit}
+      </div>
+    </div>
+  );
+}
+
 function GameRoom() {
   const { id: roomId } = useParams();
   const location = useLocation();
   const username = location.state?.username;
-  const [gameState, setGameState] = useState({
-    players: [],
-    communityCards: [],
-    pot: 0,
-    currentBet: 50,
-    currentPlayer: 1,
-    round: 'preflop',
-    revealedCards: 0
-  });
-
-  useEffect(() => {
-    const roomData = JSON.parse(localStorage.getItem(`room_${roomId}`) || '{"players": []}');
-    const deck = createDeck();
-    const dealtPlayers = roomData.players.map(player => ({
-      ...player,
-      cards: [deck.pop(), deck.pop()],
-      bet: 0,
-      isActive: true
-    }));
-
-    const communityCards = [
-      deck.pop(), deck.pop(), deck.pop(),
-      deck.pop(), deck.pop()
-    ];
-
-    setGameState({
-      ...gameState,
-      players: dealtPlayers,
-      communityCards,
-      currentPlayer: dealtPlayers[0].id
-    });
-
-    localStorage.setItem(`game_${roomId}`, JSON.stringify({
-      players: dealtPlayers,
-      communityCards,
-      currentPlayer: dealtPlayers[0].id,
-      pot: 0,
-      currentBet: 50,
-      round: 'preflop',
-      revealedCards: 0
-    }));
-  }, [roomId]);
 
   const createDeck = () => {
     const suits = ['♠', '♥', '♦', '♣'];
@@ -283,12 +297,77 @@ function GameRoom() {
     return deck;
   };
 
+  const dealCards = (players) => {
+    const deck = createDeck();
+    const dealtPlayers = players.map(player => ({
+      ...player,
+      cards: [deck.pop(), deck.pop()],
+      bet: 0,
+      isActive: true
+    }));
+
+    const communityCards = [
+      deck.pop(),
+      deck.pop(),
+      deck.pop(),
+      deck.pop(),
+      deck.pop()
+    ];
+
+    return { dealtPlayers, communityCards };
+  };
+
+  const [gameState, setGameState] = useState({
+    players: [],
+    communityCards: [],
+    pot: 0,
+    currentBet: 50,
+    dealer: 1,
+    currentPlayer: 1,
+    round: 'preflop',
+    revealedCards: 0,
+    playersActed: 0
+  });
+
+  useEffect(() => {
+    const roomData = JSON.parse(localStorage.getItem(`room_${roomId}`) || '{"players": []}');
+    const { dealtPlayers, communityCards } = dealCards(roomData.players);
+
+    setGameState(prev => ({
+      ...prev,
+      players: dealtPlayers,
+      communityCards,
+      currentPlayer: dealtPlayers[0].id
+    }));
+
+    localStorage.setItem(`game_${roomId}`, JSON.stringify({
+      ...gameState,
+      players: dealtPlayers,
+      communityCards,
+      currentPlayer: dealtPlayers[0].id
+    }));
+  }, [roomId]);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === `game_${roomId}`) {
+        const newGameState = JSON.parse(e.newValue);
+        setGameState(newGameState);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [roomId]);
+
   const handleAction = (action) => {
     setGameState(prevState => {
       const newState = { ...prevState };
       const currentPlayer = newState.players.find(p => p.id === prevState.currentPlayer);
       
-      if (currentPlayer.name !== username) return prevState;
+      if (currentPlayer.name !== username) {
+        return prevState;
+      }
       
       switch (action) {
         case 'fold':
@@ -311,15 +390,67 @@ function GameRoom() {
           break;
       }
 
+      newState.playersActed++;
+
       let nextPlayerIndex = (newState.players.findIndex(p => p.id === prevState.currentPlayer) + 1) % newState.players.length;
       while (!newState.players[nextPlayerIndex].isActive) {
         nextPlayerIndex = (nextPlayerIndex + 1) % newState.players.length;
       }
       newState.currentPlayer = newState.players[nextPlayerIndex].id;
 
+      const activePlayers = newState.players.filter(p => p.isActive).length;
+      if (newState.playersActed >= activePlayers) {
+        newState.playersActed = 0;
+        newState.players.forEach(p => p.bet = 0);
+        newState.currentBet = 0;
+
+        switch (newState.round) {
+          case 'preflop':
+            newState.round = 'flop';
+            newState.revealedCards = 3;
+            break;
+          case 'flop':
+            newState.round = 'turn';
+            newState.revealedCards = 4;
+            break;
+          case 'turn':
+            newState.round = 'river';
+            newState.revealedCards = 5;
+            break;
+          case 'river':
+            alert('Round complete!');
+            const { dealtPlayers, communityCards } = dealCards(newState.players.map(p => ({
+              ...p,
+              cards: [],
+              bet: 0,
+              isActive: true
+            })));
+            newState.players = dealtPlayers;
+            newState.communityCards = communityCards;
+            newState.round = 'preflop';
+            newState.revealedCards = 0;
+            break;
+        }
+      }
+
       localStorage.setItem(`game_${roomId}`, JSON.stringify(newState));
       return newState;
     });
+  };
+
+  const getRoundName = (round) => {
+    switch (round) {
+      case 'preflop': return 'Pre-Flop';
+      case 'flop': return 'Flop';
+      case 'turn': return 'Turn';
+      case 'river': return 'River';
+      default: return round;
+    }
+  };
+
+  const isCurrentPlayerTurn = () => {
+    const currentPlayer = gameState.players.find(p => p.name === username);
+    return currentPlayer && currentPlayer.id === gameState.currentPlayer;
   };
 
   return (
@@ -327,7 +458,7 @@ function GameRoom() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-4">
           <div className="text-white text-2xl font-semibold">
-            {gameState.round.charAt(0).toUpperCase() + gameState.round.slice(1)}
+            {getRoundName(gameState.round)}
           </div>
         </div>
 
@@ -381,34 +512,37 @@ function GameRoom() {
               {!player.isActive && (
                 <div className="text-red-400 text-xl font-semibold">Folded</div>
               )}
+              {player.id === gameState.currentPlayer && (
+                <div className="text-yellow-400 text-xl font-semibold">Current Turn</div>
+              )}
             </div>
           ))}
         </div>
 
-        {gameState.players.find(p => p.name === username)?.id === gameState.currentPlayer && (
+        {isCurrentPlayerTurn() && (
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex space-x-4">
               <button
                 onClick={() => handleAction('fold')}
-                className="px-6 py-3 bg-red-600 text-white rounded-xl"
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Fold
               </button>
               <button
                 onClick={() => handleAction('check')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Check
               </button>
               <button
                 onClick={() => handleAction('call')}
-                className="px-6 py-3 bg-green-600 text-white rounded-xl"
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Call ${gameState.currentBet}
               </button>
               <button
                 onClick={() => handleAction('raise')}
-                className="px-6 py-3 bg-purple-600 text-white rounded-xl"
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Raise
               </button>
@@ -420,7 +554,6 @@ function GameRoom() {
   );
 }
 
-// Simple SinglePlayer component
 function SinglePlayer() {
   const [gameState, setGameState] = useState({
     players: [
@@ -436,10 +569,13 @@ function SinglePlayer() {
     ],
     pot: 0,
     currentBet: 50,
+    dealer: 1,
     currentPlayer: 1,
     round: 'preflop',
     revealedCards: 0,
-    botThinking: false
+    botThinking: false,
+    playersActed: 0,
+    roundComplete: false
   });
 
   const handleAction = (action) => {
@@ -468,6 +604,7 @@ function SinglePlayer() {
           break;
       }
 
+      newState.playersActed++;
       newState.currentPlayer = 2;
       newState.botThinking = true;
       
@@ -506,11 +643,46 @@ function SinglePlayer() {
           break;
       }
 
+      newState.playersActed++;
       newState.botThinking = false;
       newState.currentPlayer = 1;
 
+      if (newState.playersActed >= 2) {
+        newState.playersActed = 0;
+        newState.players.forEach(p => p.bet = 0);
+        newState.currentBet = 0;
+
+        switch (newState.round) {
+          case 'preflop':
+            newState.round = 'flop';
+            newState.revealedCards = 3;
+            break;
+          case 'flop':
+            newState.round = 'turn';
+            newState.revealedCards = 4;
+            break;
+          case 'turn':
+            newState.round = 'river';
+            newState.revealedCards = 5;
+            break;
+          case 'river':
+            alert('Round complete!');
+            break;
+        }
+      }
+
       return newState;
     });
+  };
+
+  const getRoundName = (round) => {
+    switch (round) {
+      case 'preflop': return 'Pre-Flop';
+      case 'flop': return 'Flop';
+      case 'turn': return 'Turn';
+      case 'river': return 'River';
+      default: return round;
+    }
   };
 
   return (
@@ -518,7 +690,7 @@ function SinglePlayer() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-4">
           <div className="text-white text-2xl font-semibold">
-            {gameState.round.charAt(0).toUpperCase() + gameState.round.slice(1)}
+            {getRoundName(gameState.round)}
           </div>
         </div>
 
@@ -579,30 +751,30 @@ function SinglePlayer() {
           ))}
         </div>
 
-        {gameState.currentPlayer === 1 && (
+        {gameState.players.find(p => p.name === username)?.id === gameState.currentPlayer && (
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex space-x-4">
               <button
                 onClick={() => handleAction('fold')}
-                className="px-6 py-3 bg-red-600 text-white rounded-xl"
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Fold
               </button>
               <button
                 onClick={() => handleAction('check')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Check
               </button>
               <button
                 onClick={() => handleAction('call')}
-                className="px-6 py-3 bg-green-600 text-white rounded-xl"
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Call ${gameState.currentBet}
               </button>
               <button
                 onClick={() => handleAction('raise')}
-                className="px-6 py-3 bg-purple-600 text-white rounded-xl"
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-lg transition-all duration-200"
               >
                 Raise
               </button>
@@ -619,8 +791,8 @@ export default function App() {
     <Router>
       <nav className="bg-white shadow-md p-4">
         <div className="max-w-7xl mx-auto flex space-x-6">
-          <Link to="/" className="text-blue-600 hover:text-blue-800">Home</Link>
-          <Link to="/rules" className="text-blue-600 hover:text-blue-800">Rules</Link>
+          <Link to="/" className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200">Home</Link>
+          <Link to="/rules" className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200">Rules</Link>
         </div>
       </nav>
       <Routes>
