@@ -555,9 +555,12 @@ function GameRoom() {
 }
 
 function SinglePlayer() {
+  const location = useLocation();
+  const username = location.state?.username || localStorage.getItem('poker_username') || 'You';
+  
   const [gameState, setGameState] = useState({
     players: [
-      { id: 1, name: "You", cards: [{ value: 'A', suit: '♠' }, { value: 'K', suit: '♠' }], chips: 1000, bet: 0, isActive: true },
+      { id: 1, name: username, cards: [{ value: 'A', suit: '♠' }, { value: 'K', suit: '♠' }], chips: 1000, bet: 0, isActive: true },
       { id: 2, name: "Bot", cards: [{ value: 'Q', suit: '♥' }, { value: 'J', suit: '♥' }], chips: 1000, bet: 0, isActive: true },
     ],
     communityCards: [
@@ -751,7 +754,7 @@ function SinglePlayer() {
           ))}
         </div>
 
-        {gameState.players.find(p => p.name === username)?.id === gameState.currentPlayer && (
+        {gameState.currentPlayer === 1 && (
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex space-x-4">
               <button
