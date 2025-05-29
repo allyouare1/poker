@@ -558,27 +558,57 @@ function SinglePlayer() {
   const location = useLocation();
   const username = location.state?.username || localStorage.getItem('poker_username') || 'You';
   
-  const [gameState, setGameState] = useState({
-    players: [
-      { id: 1, name: username, cards: [{ value: 'A', suit: '♠' }, { value: 'K', suit: '♠' }], chips: 1000, bet: 0, isActive: true },
-      { id: 2, name: "Bot", cards: [{ value: 'Q', suit: '♥' }, { value: 'J', suit: '♥' }], chips: 1000, bet: 0, isActive: true },
-    ],
-    communityCards: [
-      { value: 'A', suit: '♥' },
-      { value: 'K', suit: '♦' },
-      { value: 'Q', suit: '♣' },
-      { value: 'J', suit: '♠' },
-      { value: '10', suit: '♥' }
-    ],
-    pot: 0,
-    currentBet: 50,
-    dealer: 1,
-    currentPlayer: 1,
-    round: 'preflop',
-    revealedCards: 0,
-    botThinking: false,
-    playersActed: 0,
-    roundComplete: false
+  const createDeck = () => {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const deck = [];
+    
+    for (let suit of suits) {
+      for (let value of values) {
+        deck.push({ value, suit });
+      }
+    }
+    
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    
+    return deck;
+  };
+
+  const dealCards = () => {
+    const deck = createDeck();
+    return {
+      players: [
+        { id: 1, name: username, cards: [deck.pop(), deck.pop()], chips: 1000, bet: 0, isActive: true },
+        { id: 2, name: "Bot", cards: [deck.pop(), deck.pop()], chips: 1000, bet: 0, isActive: true },
+      ],
+      communityCards: [
+        deck.pop(),
+        deck.pop(),
+        deck.pop(),
+        deck.pop(),
+        deck.pop()
+      ]
+    };
+  };
+  
+  const [gameState, setGameState] = useState(() => {
+    const { players, communityCards } = dealCards();
+    return {
+      players,
+      communityCards,
+      pot: 0,
+      currentBet: 50,
+      dealer: 1,
+      currentPlayer: 1,
+      round: 'preflop',
+      revealedCards: 0,
+      botThinking: false,
+      playersActed: 0,
+      roundComplete: false
+    };
   });
 
   const handleAction = (action) => {
@@ -670,6 +700,15 @@ function SinglePlayer() {
             break;
           case 'river':
             alert('Round complete!');
+            const { players, communityCards } = dealCards();
+            newState.players = players;
+            newState.communityCards = communityCards;
+            newState.round = 'preflop';
+            newState.revealedCards = 0;
+            newState.players.forEach(p => {
+              p.isActive = true;
+              p.bet = 0;
+            });
             break;
         }
       }
