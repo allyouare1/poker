@@ -92,8 +92,74 @@ function Rules() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-3xl font-semibold mb-4 text-blue-800">📜 Poker Rules</h2>
-        <p className="text-gray-700">Texas Hold'em poker rules will be here...</p>
+        <h2 className="text-3xl font-semibold mb-6 text-blue-800">📜 Texas Hold'em Poker Rules</h2>
+        
+        <div className="space-y-6">
+          <section>
+            <h3 className="text-xl font-semibold mb-3 text-blue-700">Game Overview</h3>
+            <p className="text-gray-700 mb-2">
+              Texas Hold'em is a community card poker game where players try to make the best five-card hand using any combination of their two private cards and the five community cards.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="text-xl font-semibold mb-3 text-blue-700">Basic Rules</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>Each player is dealt two private cards (hole cards)</li>
+              <li>Five community cards are dealt face up in the center</li>
+              <li>Players can use any combination of their hole cards and community cards</li>
+              <li>The best five-card hand wins the pot</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-xl font-semibold mb-3 text-blue-700">Game Flow</h3>
+            <ol className="list-decimal pl-6 space-y-2 text-gray-700">
+              <li><strong>Pre-Flop:</strong> Players receive their hole cards and place initial bets</li>
+              <li><strong>Flop:</strong> First three community cards are dealt</li>
+              <li><strong>Turn:</strong> Fourth community card is dealt</li>
+              <li><strong>River:</strong> Fifth and final community card is dealt</li>
+              <li><strong>Showdown:</strong> Players reveal their hands and the best hand wins</li>
+            </ol>
+          </section>
+
+          <section>
+            <h3 className="text-xl font-semibold mb-3 text-blue-700">Player Actions</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li><strong>Fold:</strong> Give up your hand and exit the current round</li>
+              <li><strong>Check:</strong> Pass the action to the next player without betting</li>
+              <li><strong>Call:</strong> Match the current bet amount</li>
+              <li><strong>Raise:</strong> Increase the current bet amount</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-xl font-semibold mb-3 text-blue-700">Hand Rankings (from highest to lowest)</h3>
+            <ol className="list-decimal pl-6 space-y-2 text-gray-700">
+              <li><strong>Royal Flush:</strong> A, K, Q, J, 10 of the same suit</li>
+              <li><strong>Straight Flush:</strong> Five consecutive cards of the same suit</li>
+              <li><strong>Four of a Kind:</strong> Four cards of the same rank</li>
+              <li><strong>Full House:</strong> Three of a kind plus a pair</li>
+              <li><strong>Flush:</strong> Five cards of the same suit</li>
+              <li><strong>Straight:</strong> Five consecutive cards of any suit</li>
+              <li><strong>Three of a Kind:</strong> Three cards of the same rank</li>
+              <li><strong>Two Pair:</strong> Two different pairs</li>
+              <li><strong>One Pair:</strong> Two cards of the same rank</li>
+              <li><strong>High Card:</strong> Highest card when no other hand is made</li>
+            </ol>
+          </section>
+
+          <section>
+            <h3 className="text-xl font-semibold mb-3 text-blue-700">Tips for Beginners</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>Start with strong hands (high pairs, high suited cards)</li>
+              <li>Pay attention to the community cards and possible combinations</li>
+              <li>Consider your position at the table</li>
+              <li>Manage your chips wisely</li>
+              <li>Don't be afraid to fold weak hands</li>
+            </ul>
+          </section>
+        </div>
       </div>
     </div>
   );
