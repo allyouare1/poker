@@ -27,27 +27,8 @@ const createGame = (gameId) => ({
   pot: 0,
   currentBet: 0,
   lastAction: null,
-  status: 'waiting', // waiting, playing, finished
-  round: 'preflop', // preflop, flop, turn, river
-  dealer: null,
-  smallBlind: 10,
-  bigBlind: 20,
-  lastActivity: Date.now(),
-  gameTimeout: null
+  status: 'waiting' // waiting, playing, finished
 });
-
-// Cleanup inactive games
-const cleanupInactiveGames = () => {
-  const now = Date.now();
-  for (const [gameId, game] of games.entries()) {
-    if (now - game.lastActivity > 3600000) { // 1 hour
-      games.delete(gameId);
-    }
-  }
-};
-
-// Run cleanup every 15 minutes
-setInterval(cleanupInactiveGames, 900000);
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -67,13 +48,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Check if player name is already taken in this game
-    const existingPlayer = Array.from(game.players.values()).find(p => p.name === playerName);
-    if (existingPlayer) {
-      socket.emit('error', { message: 'Player name already taken' });
-      return;
-    }
-
     // Add player to game
     game.players.set(socket.id, {
       id: socket.id,
@@ -82,15 +56,11 @@ io.on('connection', (socket) => {
       cards: [],
       isActive: true,
       isFolded: false,
-      currentBet: 0,
-      lastSeen: Date.now()
+      currentBet: 0
     });
 
     // Join socket room
     socket.join(gameId);
-
-    // Update game activity timestamp
-    game.lastActivity = Date.now();
 
     // Notify all players in the game
     io.to(gameId).emit('playerJoined', {
@@ -103,19 +73,6 @@ io.on('connection', (socket) => {
     if (game.players.size === 1) {
       socket.emit('hostStatus', true);
     }
-
-    // Send current game state to the new player
-    socket.emit('gameState', {
-      gameId,
-      players: Array.from(game.players.values()),
-      communityCards: game.communityCards,
-      pot: game.pot,
-      currentBet: game.currentBet,
-      currentTurn: game.currentTurn,
-      status: game.status,
-      round: game.round,
-      dealer: game.dealer
-    });
   });
 
   // Handle player disconnection
@@ -127,9 +84,8 @@ io.on('connection', (socket) => {
       if (game.players.has(socket.id)) {
         const player = game.players.get(socket.id);
         
-        // Mark player as inactive and update last seen
+        // Mark player as inactive instead of removing
         player.isActive = false;
-        player.lastSeen = Date.now();
         
         // Notify other players
         io.to(gameId).emit('playerDisconnected', {
@@ -137,36 +93,9 @@ io.on('connection', (socket) => {
           playerName: player.name
         });
 
-        // If game is in progress, start a timeout for the disconnected player
-        if (game.status === 'playing') {
-          const timeout = setTimeout(() => {
-            // If player hasn't reconnected after 2 minutes, fold their hand
-            if (game.players.get(socket.id)?.isActive === false) {
-              const player = game.players.get(socket.id);
-              if (player && !player.isFolded) {
-                player.isFolded = true;
-                io.to(gameId).emit('gameAction', {
-                  playerId: socket.id,
-                  playerName: player.name,
-                  action: 'fold',
-                  amount: 0,
-                  pot: game.pot,
-                  currentBet: game.currentBet
-                });
-              }
-            }
-          }, 120000); // 2 minutes
-
-          // Store the timeout reference
-          game.gameTimeout = timeout;
-        }
-
         // If no active players left, remove the game
         const activePlayers = Array.from(game.players.values()).filter(p => p.isActive);
         if (activePlayers.length === 0) {
-          if (game.gameTimeout) {
-            clearTimeout(game.gameTimeout);
-          }
           games.delete(gameId);
         }
         
@@ -186,24 +115,14 @@ io.on('connection', (socket) => {
     // Find the player by name
     const player = Array.from(game.players.values()).find(p => p.name === playerName);
     if (player) {
-      // Clear any existing timeout
-      if (game.gameTimeout) {
-        clearTimeout(game.gameTimeout);
-        game.gameTimeout = null;
-      }
-
       // Update player's socket ID and status
       game.players.delete(player.id);
       player.id = socket.id;
       player.isActive = true;
-      player.lastSeen = Date.now();
       game.players.set(socket.id, player);
 
       // Join socket room
       socket.join(gameId);
-
-      // Update game activity timestamp
-      game.lastActivity = Date.now();
 
       // Send current game state to reconnected player
       socket.emit('gameState', {
@@ -213,9 +132,7 @@ io.on('connection', (socket) => {
         pot: game.pot,
         currentBet: game.currentBet,
         currentTurn: game.currentTurn,
-        status: game.status,
-        round: game.round,
-        dealer: game.dealer
+        status: game.status
       });
 
       // Notify other players
@@ -240,24 +157,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (!player.isActive) {
-      socket.emit('error', { message: 'Player is not active' });
-      return;
-    }
-
-    // Update player's last seen timestamp
-    player.lastSeen = Date.now();
-    game.lastActivity = Date.now();
-
     // Handle different game actions
     switch (action) {
       case 'bet':
         if (amount > player.chips) {
           socket.emit('error', { message: 'Not enough chips' });
-          return;
-        }
-        if (amount < game.currentBet * 2) {
-          socket.emit('error', { message: 'Minimum raise must be double the current bet' });
           return;
         }
         player.chips -= amount;
@@ -277,25 +181,13 @@ io.on('connection', (socket) => {
           return;
         }
         break;
-
-      case 'call':
-        const callAmount = game.currentBet - player.currentBet;
-        if (callAmount > player.chips) {
-          socket.emit('error', { message: 'Not enough chips to call' });
-          return;
-        }
-        player.chips -= callAmount;
-        game.pot += callAmount;
-        player.currentBet += callAmount;
-        break;
     }
 
     // Update last action
     game.lastAction = {
       playerId: socket.id,
       action,
-      amount,
-      timestamp: Date.now()
+      amount
     };
 
     // Notify all players of the action
@@ -305,44 +197,7 @@ io.on('connection', (socket) => {
       action,
       amount,
       pot: game.pot,
-      currentBet: game.currentBet,
-      timestamp: game.lastAction.timestamp
-    });
-  });
-
-  // Handle game start
-  socket.on('startGame', ({ gameId }) => {
-    const game = games.get(gameId);
-    if (!game) {
-      socket.emit('error', { message: 'Game not found' });
-      return;
-    }
-
-    const player = game.players.get(socket.id);
-    if (!player) {
-      socket.emit('error', { message: 'Player not found in game' });
-      return;
-    }
-
-    // Only host can start the game
-    if (game.players.size < 2) {
-      socket.emit('error', { message: 'Need at least 2 players to start' });
-      return;
-    }
-
-    game.status = 'playing';
-    game.round = 'preflop';
-    game.dealer = Array.from(game.players.keys())[0];
-    
-    // Deal cards and set up initial game state
-    // ... (implement card dealing logic here)
-
-    // Notify all players that the game has started
-    io.to(gameId).emit('gameStarted', {
-      gameId,
-      players: Array.from(game.players.values()),
-      dealer: game.dealer,
-      round: game.round
+      currentBet: game.currentBet
     });
   });
 });

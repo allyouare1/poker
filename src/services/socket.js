@@ -7,22 +7,13 @@ class SocketService {
     this.playerName = null;
     this.isHost = false;
     this.listeners = new Map();
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000; // Start with 1 second delay
   }
 
   connect() {
-    this.socket = io('http://localhost:3000', {
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: this.reconnectDelay,
-      timeout: 10000
-    });
+    this.socket = io('http://localhost:3000');
 
     this.socket.on('connect', () => {
       console.log('Connected to server');
-      this.reconnectAttempts = 0;
       
       // If we have stored game info, try to reconnect
       const storedGameId = localStorage.getItem('gameId');
@@ -33,30 +24,12 @@ class SocketService {
       }
     });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from server:', reason);
-      
-      if (reason === 'io server disconnect') {
-        // Server initiated disconnect, try to reconnect
-        this.socket.connect();
-      }
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-      this.reconnectAttempts++;
-      
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        this.emit('connectionError', {
-          message: 'Failed to connect to server after multiple attempts',
-          error
-        });
-      }
+    this.socket.on('disconnect', () => {
+      console.log('Disconnected from server');
     });
 
     this.socket.on('error', (error) => {
       console.error('Socket error:', error);
-      this.emit('error', error);
     });
 
     // Set up default event listeners
@@ -84,17 +57,9 @@ class SocketService {
       this.emit('gameAction', data);
     });
 
-    this.socket.on('gameStarted', (data) => {
-      this.emit('gameStarted', data);
-    });
-
     this.socket.on('hostStatus', (isHost) => {
       this.isHost = isHost;
       this.emit('hostStatus', isHost);
-    });
-
-    this.socket.on('error', (error) => {
-      this.emit('error', error);
     });
   }
 
@@ -126,19 +91,8 @@ class SocketService {
     }
   }
 
-  startGame() {
-    if (!this.gameId || !this.isHost) {
-      this.emit('error', { message: 'Only the host can start the game' });
-      return;
-    }
-    this.socket.emit('startGame', { gameId: this.gameId });
-  }
-
   performAction(action, amount = 0) {
-    if (!this.gameId) {
-      this.emit('error', { message: 'Not in a game' });
-      return;
-    }
+    if (!this.gameId) return;
     
     this.socket.emit('gameAction', {
       gameId: this.gameId,
@@ -147,6 +101,7 @@ class SocketService {
     });
   }
 
+  // Event handling methods
   on(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -162,13 +117,7 @@ class SocketService {
 
   emit(event, data) {
     if (this.listeners.has(event)) {
-      this.listeners.get(event).forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in ${event} listener:`, error);
-        }
-      });
+      this.listeners.get(event).forEach(callback => callback(data));
     }
   }
 
